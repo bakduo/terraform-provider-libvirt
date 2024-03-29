@@ -85,12 +85,6 @@ func newDomainDef() libvirtxml.Domain {
 		},
 	}
 
-	if v := os.Getenv("TERRAFORM_LIBVIRT_TEST_DOMAIN_TYPE"); v != "" {
-		domainDef.Type = v
-	} else {
-		domainDef.Type = "kvm"
-	}
-
 	// FIXME: We should allow setting this from configuration as well.
 	rngDev := os.Getenv("TF_LIBVIRT_RNG_DEV")
 	if rngDev == "" {
@@ -145,8 +139,11 @@ func newDomainDefForConnection(virConn *libvirt.Libvirt, rd *schema.ResourceData
 
 	if machine, ok := rd.GetOk("machine"); ok {
 		d.OS.Type.Machine = machine.(string)
-	} else if len(guest.Arch.Machines) > 0 {
-		d.OS.Type.Machine = guest.Arch.Machines[0].Name
+	} else {
+		d.OS.Type.Machine, err = getMachineTypeForArch(caps, d.OS.Type.Arch, d.OS.Type.Type)
+		if err != nil {
+			return d, err
+		}
 	}
 
 	canonicalmachine, err := getCanonicalMachineName(caps, d.OS.Type.Arch, d.OS.Type.Type, d.OS.Type.Machine)
